@@ -1,0 +1,9 @@
+deepspeech
+ffpb
+librosa
+matplotlib
+numpy
+pandas
+pydub
+resemblyzer
+wave
