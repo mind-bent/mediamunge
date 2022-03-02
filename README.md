@@ -26,6 +26,7 @@ https://medium.com/visionwizard/train-your-own-speech-recognition-model-in-5-sim
 https://www.assemblyai.com/blog/deepspeech-for-dummies-a-tutorial-and-overview-part-1/
 https://www.assemblyai.com/blog/python-project-lecture-summaries/
 https://deepspeech.readthedocs.io/en/r0.9/TRAINING.html#training-a-model
+
 Tune pre-trained model: 
 https://pythonawesome.com/a-keras-implementation-of-speach-to-text-architectures/
 https://keras.io/keras_tuner/
