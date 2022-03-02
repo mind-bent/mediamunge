@@ -9,6 +9,7 @@ and swapping the GCP STT part with DeepSpeech in order to not have to subscribe/
 in a standalone environment.
 
 PreTrained models for DeepSpeech can be pulled down from here:
+
 https://github.com/mozilla/DeepSpeech/releases
 
 This code currently points to:
@@ -18,6 +19,7 @@ Some information on this can be referenced here:
 https://lindevs.com/speech-to-text-using-deepspeech/
 
 The idea here is to eventually get enough media to use for DeepSpeech training as explained here:
+
 https://mozilla.github.io/deepspeech-playbook/DATA_FORMATTING.html
 https://mozilla.github.io/deepspeech-playbook/DATA_FORMATTING.html#preparing-your-data-for-training
 https://mozilla.github.io/deepspeech-playbook/TRAINING.html
@@ -28,10 +30,12 @@ https://www.assemblyai.com/blog/python-project-lecture-summaries/
 https://deepspeech.readthedocs.io/en/r0.9/TRAINING.html#training-a-model
 
 Tune pre-trained model: 
+
 https://pythonawesome.com/a-keras-implementation-of-speach-to-text-architectures/
 https://keras.io/keras_tuner/
 https://keras.io/examples/audio/ctc_asr/
 
 This process uses ffmpeg for manipulating media.
 ffmpeg references:
+
 https://ottverse.com/trim-cut-video-using-start-endtime-reencoding-ffmpeg/
