@@ -157,7 +157,7 @@ def main(args):
     params_list = [item for param in args.wav_args.split("-")[1:] for item in f"-{param}".split(" ")[:2]]
     # Convert video to mono 14k audio wave file
     wav_file = args.input.split('.')[0].split("-")[0].replace(" ", "") +".wav"
-    print(f"Converting video file to {wav_file}")
+    print(f"Converting media file to {wav_file}")
     ffpb.main(
         argv=[
             "-i",
