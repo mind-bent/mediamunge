@@ -13,27 +13,42 @@ PreTrained models for DeepSpeech can be pulled down from here:
 https://github.com/mozilla/DeepSpeech/releases
 
 This code currently points to:
+
 deepspeech-0.9.3-models.pbmm
+
 deepspeech-0.9.3-models.scorer
+
 Some information on this can be referenced here:
+
 https://lindevs.com/speech-to-text-using-deepspeech/
 
 The idea here is to eventually get enough media to use for DeepSpeech training as explained here:
 
 https://mozilla.github.io/deepspeech-playbook/DATA_FORMATTING.html
+
 https://mozilla.github.io/deepspeech-playbook/DATA_FORMATTING.html#preparing-your-data-for-training
+
 https://mozilla.github.io/deepspeech-playbook/TRAINING.html
+
 https://github.com/mozilla/DeepSpeech/blob/master/doc/TRAINING.rst
+
 https://medium.com/visionwizard/train-your-own-speech-recognition-model-in-5-simple-steps-512d5ac348a5
+
 https://www.assemblyai.com/blog/deepspeech-for-dummies-a-tutorial-and-overview-part-1/
+
 https://www.assemblyai.com/blog/python-project-lecture-summaries/
+
 https://deepspeech.readthedocs.io/en/r0.9/TRAINING.html#training-a-model
+
 
 Tune pre-trained model: 
 
 https://pythonawesome.com/a-keras-implementation-of-speach-to-text-architectures/
+
 https://keras.io/keras_tuner/
+
 https://keras.io/examples/audio/ctc_asr/
+
 
 This process uses ffmpeg for manipulating media.
 ffmpeg references:
