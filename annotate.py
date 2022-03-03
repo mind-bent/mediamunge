@@ -1,6 +1,6 @@
 import os
 import pandas as pd
-import logging
+# import logging
 import argparse
 import threading
 from tkinter import *
@@ -31,13 +31,19 @@ if __name__ == "__main__":
     logdir = "logs"
     if not os.path.isdir(logdir):
         os.mkdir(logdir)
-    logging.basicConfig(filename=os.path.join(logdir, f'{args.csv}_{str(datetime.now()).replace(" ", "_")}.log'), level=logging.DEBUG)
+    # logging.basicConfig(filename=os.path.join(logdir, f'{args.csv}_{str(datetime.now()).replace(" ", "_")}.log'), level=logging.DEBUG)
     
-    files = pd.read_csv(args.csv, sep="|", dtype = {'file': "string", 'size': "string", 'sentence': "string"})
+    files = pd.read_csv(args.csv, sep="|", dtype = {
+        'file': "string",
+        'timestamps': "string",
+        'size': "string",
+        'sentence': "string"
+    })
+
     offsets_deleted_sentences = []
     window = Tk()
     window.title(f"Transcription of {args.csv}")
-    WIN_SIZE = 1200
+    WIN_SIZE = 1300
     window.geometry(f'{WIN_SIZE}x500')
     
     instructions = Label(window, text="Audio files will be played automatically, transcribe them in the text area, then press ctrl-n to get to the next sample, ctrl-d to delete the current sample or ctrl-r to repeat the sample")
@@ -47,7 +53,7 @@ if __name__ == "__main__":
     transcription.grid(row=1, columnspan=3, pady=30)
     
     def prepare_next_turn():
-        """loads next file or ends the program"""
+        """Loads next file or ends the program"""
         global current_offset, audio_player
         current_offset += 1
         progress_bar["value"] = current_offset
@@ -62,19 +68,20 @@ if __name__ == "__main__":
             window.destroy()
 
     def press_next():
-        """modifies csv with text content and prepares for next turn"""
-        files.iat[current_offset, 2] = transcription.get("1.0", END).replace("\n", "")
-        logging.info(f"{current_offset} - {files.iat[current_offset, 2]}")
+        """Modifies csv with text content and prepares for next turn"""
+        files.iat[current_offset, 3] = transcription.get("1.0", END).replace("\n", "")
+        # logging.info(f"{current_offset} - {files.iat[current_offset, 3]}")
+        window.title(f"Current wav file is {files.iat[current_offset+1, 0].split('/')[-1]}")
         prepare_next_turn()
         
     def press_delete():
-        """adds current phrase offset to instance of deleted phrases and prepares for next turns"""
+        """Adds current phrase offset to instance of deleted phrases and prepares for next turns"""
         offsets_deleted_sentences.append(current_offset)
-        logging.info(f"{current_offset} deleted")
+        # logging.info(f"{current_offset} deleted")
         prepare_next_turn()
         
     def press_repeat():
-        """repeats the previous audio file"""
+        """Repeats the previous audio file"""
         PlayAudioSample(os.path.join(args.audio_folder, files.file.iat[current_offset])).start()
         
     button_delete = Button(window, text="Delete", command=press_delete, bg="red")
@@ -95,7 +102,7 @@ if __name__ == "__main__":
     prepare_next_turn()
     window.mainloop()
     
-    # deletes wav files to delete
+    # Deletes wav files to delete
     for i in offsets_deleted_sentences:
         file_name = os.path.join(args.audio_folder, files.file.iat[i])
         os.remove(file_name)
@@ -105,5 +112,6 @@ if __name__ == "__main__":
     files = files.iloc[index_to_keep]
     
     # save modified csv
-    print("Save modified csv file")
+    print("Saved modified csv file")
+    print(f"Last wav file was {files.iat[current_offset, 0].split('/')[-1]}")
     files.to_csv(args.csv, sep="|", index=False)
