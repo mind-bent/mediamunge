@@ -1,6 +1,5 @@
 import os
 import pandas as pd
-# import logging
 import argparse
 import threading
 from tkinter import *
@@ -31,7 +30,6 @@ if __name__ == "__main__":
     logdir = "logs"
     if not os.path.isdir(logdir):
         os.mkdir(logdir)
-    # logging.basicConfig(filename=os.path.join(logdir, f'{args.csv}_{str(datetime.now()).replace(" ", "_")}.log'), level=logging.DEBUG)
     
     files = pd.read_csv(args.csv, sep="|", dtype = {
         'file': "string",
@@ -52,10 +50,13 @@ if __name__ == "__main__":
     transcription = scrolledtext.ScrolledText(window, width=130, height=20)
     transcription.grid(row=1, columnspan=3, pady=30)
     
-    def prepare_next_turn():
+    def prepare_next_turn(fwd):
         """Loads next file or ends the program"""
         global current_offset, audio_player
-        current_offset += 1
+        if fwd:
+            current_offset += 1
+        else:
+            current_offset -= 1
         progress_bar["value"] = current_offset
         if current_offset < len(files):
             transcription.delete("1.0", END)
@@ -67,18 +68,22 @@ if __name__ == "__main__":
         else:
             window.destroy()
 
+    def press_previous():
+        """Modifies csv with text content and prepares for next turn"""
+        files.iat[current_offset, 3] = transcription.get("1.0", END).replace("\n", "")
+        window.title(f"Current wav file is {files.iat[current_offset-1, 0].split('/')[-1]}")
+        prepare_next_turn(False)
+
     def press_next():
         """Modifies csv with text content and prepares for next turn"""
         files.iat[current_offset, 3] = transcription.get("1.0", END).replace("\n", "")
-        # logging.info(f"{current_offset} - {files.iat[current_offset, 3]}")
         window.title(f"Current wav file is {files.iat[current_offset+1, 0].split('/')[-1]}")
-        prepare_next_turn()
+        prepare_next_turn(True)
         
     def press_delete():
         """Adds current phrase offset to instance of deleted phrases and prepares for next turns"""
         offsets_deleted_sentences.append(current_offset)
-        # logging.info(f"{current_offset} deleted")
-        prepare_next_turn()
+        prepare_next_turn(True)
         
     def press_repeat():
         """Repeats the previous audio file"""
@@ -88,18 +93,22 @@ if __name__ == "__main__":
     button_delete.grid(row=2, column=0)
     button_repeat = Button(window, text="Repeat", command=press_repeat, bg="blue")
     button_repeat.grid(row=2, column=1)
+    button_prev = Button(window, text="Previous", command=press_previous, bg="yellow")
+    button_prev.grid(row=2, column=2)
     button_next = Button(window, text="Next", command=press_next, bg="yellow")
-    button_next.grid(row=2, column=2)
+    button_next.grid(row=2, column=3)
     window.bind('<Control-d>', lambda _: press_delete())
     window.bind('<Control-r>', lambda _: press_repeat())
+    window.bind('<Control-p>', lambda _: press_previous())
     window.bind('<Control-n>', lambda _: press_next())
     
     progress_bar = ttk.Progressbar(window, style='blue.Horizontal.TProgressbar', length=WIN_SIZE, maximum=len(files))
-    progress_bar.grid(row=4, columnspan=3)
+    #progress_bar.grid(row=4, columnspan=3)
+    progress_bar.grid(row=4, columnspan=4)
     window.grid_rowconfigure(3, weight=1)  # so that pbar is at the bottom
     
     current_offset = args.start_offset - 1  # will be incremented by prepare_next_turn
-    prepare_next_turn()
+    prepare_next_turn(True)
     window.mainloop()
     
     # Deletes wav files to delete

@@ -27,6 +27,10 @@ except Exception:
     print("Are the model file paths correct?")
 
 
+def check_files(args):
+    args.input_dir
+
+
 def videosplice(args, cut_times):
     timeframes = ','.join(map(str, cut_times))
     print(f'Splicing video at {timeframes}')
@@ -140,8 +144,7 @@ def get_silence(args):
         current_round += 1
 
     if len(silences) < 1:
-        print('There was no silence to be found. Try another file or tweak the parameters.')
-        sys.exit()
+        sys.exit('There was no silence to be found. Try another file or tweak the parameters.')
     else:
         print(f'Found {len(silences)} silence points to sort through')
 
@@ -154,9 +157,11 @@ def get_silence(args):
 def main(args):
     if not os.path.exists(args.audio_folder):
         os.makedirs(args.audio_folder)
+
     params_list = [item for param in args.wav_args.split("-")[1:] for item in f"-{param}".split(" ")[:2]]
     # Convert video to mono 14k audio wave file
-    wav_file = args.input.split('.')[0].split("-")[0].replace(" ", "") +".wav"
+    wav_file = args.input.replace(" ", "").replace(")", "").replace("(", "").replace("#", "").replace(",", "").rsplit(".", 1)[0].rsplit("-", 1)[0] + ".wav"
+    #wav_file = args.input.split('.')[0].split("-")[0].replace(" ", "") +".wav"
     print(f"Converting media file to {wav_file}")
     ffpb.main(
         argv=[
@@ -238,23 +243,53 @@ def main(args):
         files.iat[i, 3] = text
 
     files.to_csv(args.out_csv, sep="|", index=False)
-    print(f"{args.out_csv} has been written")
+    print(f"FINISHED: {args.out_csv} has been written")
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("""Extracts audio, and splits it into smaller files""")
-    parser.add_argument("--input", help="big video file", required=True)
-    parser.add_argument("--audio_folder", help="folder that will contain smaller the audio files", required=True)
-    parser.add_argument("--out_csv", help="name of output csv file, will contain names of each chopped wav file and will be pupulated with their transcript", required=True)
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument("--input", help="One media file to work with")
+    group.add_argument("--input_dir", help="Media directory to work with. Looks for mp4, mkv, webm, mp3")
+    parser.add_argument("--audio_folder", help="Folder that will contain smaller the audio files", required=True)
+    parser.add_argument("--out_csv", help="Name of output csv file, will contain names of each chopped wav file and will be pupulated with their transcript", required=True)
     parser.add_argument("--splice_video", help="Splice video along with audio", action='store_true')
-    parser.add_argument("--wav_args", help="list of arguments of the wav created files as string", default="-acodec pcm_s16le -ac 1 -ar 16000")
-    parser.add_argument("--max_duration", help="maximum duration (in seconds) a clip can last", default=7, type=int)
-    parser.add_argument("--min_duration", help="minimum duration (in seconds) a clip can last", default=2, type=int)
-    parser.add_argument("--remove_bad_segments", action="store_true",
-        help="use this to automatically remove sentences not spoken by a speaker of interest (must be specified using the 'speaker_segment' argument")
+    parser.add_argument("--wav_args", help="List of arguments of the wav created files as string", default="-acodec pcm_s16le -ac 1 -ar 16000")
+    parser.add_argument("--max_duration", help="Maximum duration (in seconds) a clip can last", default=7, type=int)
+    parser.add_argument("--min_duration", help="Minimum duration (in seconds) a clip can last", default=2, type=int)
+    parser.add_argument("--Remove_bad_segments", action="store_true",
+        help="Use this to automatically remove sentences not spoken by a speaker of interest (must be specified using the 'speaker_segment' argument")
     parser.add_argument("--speaker_segment", nargs=2, type=float, 
-        help="start and end time of a sample spoken by a speaker (seconds)")
+        help="Start and end time of a sample spoken by a speaker (seconds)")
     args = parser.parse_args()
-    print("SNAKES!")
-    main(args)
+
+    if args.input_dir:
+        if os.path.isdir(args.input_dir):
+            print(f"Using files in {args.input_dir}")
+        else:
+            sys.exit(f"This input directory: {args.input_dir} does not exist.")
+
+        class Namespace:
+            def __init__(self, **kwargs):
+                self.__dict__.update(kwargs)
+
+        for item in os.listdir(args.input_dir):
+            if "mkv" in item or "mp4" in item or "mp3" in item or 'webm' in item:
+                basename = item.replace(" ", "").replace(")", "").replace("(", "").replace("#", "").replace(",", "").rsplit(".", 1)[0].rsplit("-", 1)[0]
+                adir = f"media/{basename}_audio/"
+                csv = f"media/{basename}.csv"
+                new_args = Namespace(
+                    input=f'{args.input_dir}{item}',
+                    audio_folder=adir,
+                    out_csv=csv,
+                    splice_video=args.splice_video,
+                    wav_args=args.wav_args,
+                    max_duration=args.max_duration,
+                    min_duration=args.min_duration,
+                    remove_bad_segments=False,
+                )
+                main(new_args)
+
+    else:
+        main(args)
     
