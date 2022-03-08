@@ -6,32 +6,14 @@ import wave
 import ffpb
 import numpy as np
 import pandas as pd
-import librosa
 import argparse
 import subprocess
 import matplotlib.pyplot as plt
 from pydub import AudioSegment
-from pydub.playback import play
 from deepspeech import Model
-from resemblyzer import normalize_volume, VoiceEncoder
-from resemblyzer.hparams import sampling_rate, audio_norm_target_dBFS
-from resemblyzer.hparams import sampling_rate, audio_norm_target_dBFS
-
-modelPath =  '../models/v0.9.3/deepspeech-0.9.3-models.pbmm'
-scorerPath = '../models/v0.9.3/deepspeech-0.9.3-models.scorer'
-
-try:
-    ds = Model(modelPath)
-    ds.enableExternalScorer(scorerPath)
-except Exception:
-    print("Are the model file paths correct?")
 
 
-def check_files(args):
-    args.input_dir
-
-
-def videosplice(args, cut_times):
+def videosplice(args, cut_times, adir):
     timeframes = ','.join(map(str, cut_times))
     print(f'Splicing video at {timeframes}')
     file_extension = os.path.splitext(args.input)[1][1:]
@@ -49,13 +31,11 @@ def videosplice(args, cut_times):
         'segment',
         '-segment_times',
         timeframes,
-        f'{args.audio_folder}/sentence_%03d.{file_extension}'
+        f'{adir}/sentence_%03d.{file_extension}'
     ], stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
 
-    print(f'RESULTS {process.stdout} and {process.stderr}')
 
-
-def process_silence(args, silences, wav_file, wav=None, source_sr=None, encoder=None, speaker_embed=None, similarities=None):    
+def process_silence(args, silences, wav_file, adir, wav=None, source_sr=None, encoder=None, speaker_embed=None, similarities=None):    
     # Loop through the silences (start time, end time, type) and try to find silences smaller than args.max_duration seconds and bigger than one second greedily
     # by trying to cut it at the biggest silence. Thus we will skip the first and last audio sample, but we don't care.
     sent_index, i, lost_seconds = 0, 0, 0
@@ -96,6 +76,8 @@ def process_silence(args, silences, wav_file, wav=None, source_sr=None, encoder=
         sent_end = (silences[i+j][0] + silences[i+j][1]) / 2
 
         if args.remove_bad_segments:
+            from resemblyzer.hparams import sampling_rate
+
             sent_wav = wav[int(sent_start * sampling_rate):int(sent_end * sampling_rate)]
             sent_embed = encoder.embed_utterance(sent_wav, rate=16)
             similarities.append(sent_embed @ speaker_embed)
@@ -107,7 +89,7 @@ def process_silence(args, silences, wav_file, wav=None, source_sr=None, encoder=
         sent_index += 1
 
     if args.splice_video:
-        videosplice(args, all_times)
+        videosplice(args, all_times, adir)
 
     print(f"{lost_seconds : .2f} lost seconds")
 
@@ -154,15 +136,33 @@ def get_silence(args):
     return silences
 
 
-def main(args):
-    if not os.path.exists(args.audio_folder):
-        os.makedirs(args.audio_folder)
+def main(args, adir, csv):
+    if not os.path.exists(adir):
+        os.makedirs(adir)
 
     params_list = [item for param in args.wav_args.split("-")[1:] for item in f"-{param}".split(" ")[:2]]
+
+    for item in os.listdir(args.model_dir):
+        if '.pbmm' in item:
+            modelPath =  f"{args.model_dir}{item}"
+        if '.scorer' in item:
+            scorerPath =  f"{args.model_dir}{item}"
+    
+    try:
+        modelPath
+        scorerPath
+        ds = Model(modelPath)
+        ds.enableExternalScorer(scorerPath)
+        print("Model has been loaded.")
+    except Exception:
+        print("Are the model file paths correct?")
+        sys.exit()
+
+    # Format wav file name
+    wav_file = ''.join(e for e in args.input if e.isalnum()) + ".wav"
+
     # Convert video to mono 14k audio wave file
-    wav_file = args.input.replace(" ", "").replace(")", "").replace("(", "").replace("#", "").replace(",", "").rsplit(".", 1)[0].rsplit("-", 1)[0] + ".wav"
-    #wav_file = args.input.split('.')[0].split("-")[0].replace(" ", "") +".wav"
-    print(f"Converting media file to {wav_file}")
+    print(f"Converting media file {args.input} to {wav_file}")
     ffpb.main(
         argv=[
             "-i",
@@ -179,6 +179,11 @@ def main(args):
 
     # Filter out unwanted audio
     if args.remove_bad_segments:
+        import librosa
+        import matplotlib.pyplot as plt
+        from resemblyzer import normalize_volume, VoiceEncoder
+        from resemblyzer.hparams import sampling_rate, audio_norm_target_dBFS
+        from pydub.playback import play
         wav, source_sr = librosa.load(wav_file, sr=None)
         wav = librosa.resample(wav, source_sr, sampling_rate)
         wav = normalize_volume(wav, audio_norm_target_dBFS, increase_only=True)
@@ -194,9 +199,9 @@ def main(args):
         encoder = VoiceEncoder("cpu")
         speaker_embed = encoder.embed_utterance(speaker_wav)
         similarities = []
-        cut_times, similarities = process_silence(args, silences, wav_file, wav, source_sr, encoder, speaker_embed, similarities)
+        cut_times, similarities = process_silence(args, silences, wav_file, adir, wav, source_sr, encoder, speaker_embed, similarities)
     else:
-        cut_times = process_silence(args, silences, wav_file)
+        cut_times = process_silence(args, silences, wav_file, adir)
 
     if args.remove_bad_segments:
         # selects the similarity threshold at which we will remove audio
@@ -219,20 +224,21 @@ def main(args):
 
     # Add all the audio file names to the file column
     for i, (audio, file_name, timestamps) in enumerate(cut_times):
-        print(f"Creating File Name: {file_name} Time Stamps {timestamps}")
         if args.remove_bad_segments and similarities[i] < thr:
             continue
-        csv_file["file"].append(os.path.abspath(args.audio_folder) +"/"+ file_name)
+        print(f"Creating File Name: {file_name} Time Stamps {timestamps}")
+        #csv_file["file"].append(os.path.abspath(adir) +"/"+ file_name)
+        csv_file["file"].append(f"{file_name}")
         csv_file["timestamps"].append(timestamps)
-        audio.export(os.path.join(args.audio_folder, file_name), format="wav", parameters=params_list)
+        audio.export(os.path.join(adir, file_name), format="wav", parameters=params_list)
     
     csv_file["size"] = [""] * len(csv_file["file"])  # adding an empty column for wav file size
     csv_file["sentence"] = [""] * len(csv_file["file"])  # adding an empty column for transcription
-    pd.DataFrame(csv_file).to_csv(args.out_csv, sep="|", index=False)
-    files = pd.read_csv(args.out_csv, sep="|", dtype="string")
-    print(f"Transcribing text that will be added to {args.out_csv}")
+    pd.DataFrame(csv_file).to_csv(csv, sep="|", index=False)
+    files = pd.read_csv(csv, sep="|", dtype="string")
+    print(f"Transcribing text that will be added to {csv}")
     for i in range(len(files)):
-        file_name = os.path.join(args.audio_folder, files.iat[i, 0])
+        file_name = os.path.join(adir, files.iat[i, 0])
         file_size = os.path.getsize(file_name)
         files.iat[i, 2] = str(file_size)
         fin = wave.open(file_name, 'rb')
@@ -242,8 +248,8 @@ def main(args):
         print(text)
         files.iat[i, 3] = text
 
-    files.to_csv(args.out_csv, sep="|", index=False)
-    print(f"FINISHED: {args.out_csv} has been written")
+    files.to_csv(csv, sep="|", index=False)
+    print(f"FINISHED: {csv} has been written")
 
 
 if __name__ == "__main__":
@@ -251,13 +257,12 @@ if __name__ == "__main__":
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--input", help="One media file to work with")
     group.add_argument("--input_dir", help="Media directory to work with. Looks for mp4, mkv, webm, mp3")
-    parser.add_argument("--audio_folder", help="Folder that will contain smaller the audio files", required=True)
-    parser.add_argument("--out_csv", help="Name of output csv file, will contain names of each chopped wav file and will be pupulated with their transcript", required=True)
+    parser.add_argument("--model_dir", help="Path to directory containing the model .pbmm  and .scorer files", required=True)
     parser.add_argument("--splice_video", help="Splice video along with audio", action='store_true')
     parser.add_argument("--wav_args", help="List of arguments of the wav created files as string", default="-acodec pcm_s16le -ac 1 -ar 16000")
     parser.add_argument("--max_duration", help="Maximum duration (in seconds) a clip can last", default=7, type=int)
     parser.add_argument("--min_duration", help="Minimum duration (in seconds) a clip can last", default=2, type=int)
-    parser.add_argument("--Remove_bad_segments", action="store_true",
+    parser.add_argument("--remove_bad_segments", action="store_true",
         help="Use this to automatically remove sentences not spoken by a speaker of interest (must be specified using the 'speaker_segment' argument")
     parser.add_argument("--speaker_segment", nargs=2, type=float, 
         help="Start and end time of a sample spoken by a speaker (seconds)")
@@ -274,22 +279,23 @@ if __name__ == "__main__":
                 self.__dict__.update(kwargs)
 
         for item in os.listdir(args.input_dir):
+            print(f"FOUND {item}")
             if "mkv" in item or "mp4" in item or "mp3" in item or 'webm' in item:
-                basename = item.replace(" ", "").replace(")", "").replace("(", "").replace("#", "").replace(",", "").rsplit(".", 1)[0].rsplit("-", 1)[0]
+                basename = ''.join(e for e in item if e.isalnum())
                 adir = f"media/{basename}_audio/"
                 csv = f"media/{basename}.csv"
                 new_args = Namespace(
-                    input=f'{args.input_dir}{item}',
-                    audio_folder=adir,
-                    out_csv=csv,
+                    input=f"{args.input_dir}{item}",
                     splice_video=args.splice_video,
                     wav_args=args.wav_args,
                     max_duration=args.max_duration,
                     min_duration=args.min_duration,
                     remove_bad_segments=False,
                 )
-                main(new_args)
+                main(new_args, adir, csv)
 
     else:
-        main(args)
-    
+        basename = ''.join(e for e in args.input.split('/')[-1] if e.isalnum())
+        adir = f"media/{basename}_audio/"
+        csv = f"media/{basename}.csv"
+        main(args, adir, csv)

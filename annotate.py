@@ -27,10 +27,6 @@ if __name__ == "__main__":
     parser.add_argument("--start_offset", help="offset of the first file to consider", default=0, type=int)
     args = parser.parse_args()
     
-    logdir = "logs"
-    if not os.path.isdir(logdir):
-        os.mkdir(logdir)
-    
     files = pd.read_csv(args.csv, sep="|", dtype = {
         'file': "string",
         'timestamps': "string",
@@ -44,7 +40,7 @@ if __name__ == "__main__":
     WIN_SIZE = 1300
     window.geometry(f'{WIN_SIZE}x500')
     
-    instructions = Label(window, text="Audio files will be played automatically, transcribe them in the text area, then press ctrl-n to get to the next sample, ctrl-d to delete the current sample or ctrl-r to repeat the sample")
+    instructions = Label(window, text="Audio files will be played automatically, transcribe them in the text area, then press ctrl-n to get to the next sample, ctrl-p for previous, ctrl-d to delete the current sample or ctrl-r to repeat the sample")
     instructions.grid(row=0, columnspan=3)
     
     transcription = scrolledtext.ScrolledText(window, width=130, height=20)
@@ -103,11 +99,10 @@ if __name__ == "__main__":
     window.bind('<Control-n>', lambda _: press_next())
     
     progress_bar = ttk.Progressbar(window, style='blue.Horizontal.TProgressbar', length=WIN_SIZE, maximum=len(files))
-    #progress_bar.grid(row=4, columnspan=3)
     progress_bar.grid(row=4, columnspan=4)
     window.grid_rowconfigure(3, weight=1)  # so that pbar is at the bottom
     
-    current_offset = args.start_offset - 1  # will be incremented by prepare_next_turn
+    current_offset = args.start_offset - 1  # will be incremented or decremented by prepare_next_turn
     prepare_next_turn(True)
     window.mainloop()
     
@@ -120,7 +115,6 @@ if __name__ == "__main__":
     index_to_keep = [i for i in range(len(files)) if i not in set(offsets_deleted_sentences)]
     files = files.iloc[index_to_keep]
     
-    # save modified csv
     print("Saved modified csv file")
     print(f"Last wav file was {files.iat[current_offset, 0].split('/')[-1]}")
     files.to_csv(args.csv, sep="|", index=False)
