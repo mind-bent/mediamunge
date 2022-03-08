@@ -159,7 +159,8 @@ def main(args, adir, csv):
         sys.exit()
 
     # Format wav file name
-    wav_file = ''.join(e for e in args.input if e.isalnum()) + ".wav"
+    wav_file = f"{''.join(e for e in args.input.split('/')[-1] if e.isalnum())}.wav"
+    wav_file = f"{'/'.join(args.input.split('/')[:-1])}/{wav_file}"
 
     # Convert video to mono 14k audio wave file
     print(f"Converting media file {args.input} to {wav_file}")
@@ -227,7 +228,6 @@ def main(args, adir, csv):
         if args.remove_bad_segments and similarities[i] < thr:
             continue
         print(f"Creating File Name: {file_name} Time Stamps {timestamps}")
-        #csv_file["file"].append(os.path.abspath(adir) +"/"+ file_name)
         csv_file["file"].append(f"{file_name}")
         csv_file["timestamps"].append(timestamps)
         audio.export(os.path.join(adir, file_name), format="wav", parameters=params_list)
