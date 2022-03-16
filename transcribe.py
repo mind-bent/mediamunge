@@ -10,7 +10,40 @@ import argparse
 import subprocess
 import matplotlib.pyplot as plt
 from pydub import AudioSegment
+from difflib import SequenceMatcher
 from deepspeech import Model
+
+
+def compare(first, second):
+    return SequenceMatcher(None, first, second).ratio()
+
+
+def getMatches(csv, ttc, index, row, num):
+    anchors = []
+    try:
+        found = [item for item in range(len(ttc)) if ttc[item] == csv[num]]
+        for word in found:
+            matches = [{'index':index, 'items':
+                [
+                    {'match':compare(row['sentence'], ' '.join(ttc[word:word+len(csv)])),
+                        'sen':' '.join(ttc[word:word+len(csv)])},
+                    {'match':compare(row['sentence'], ' '.join(ttc[word:word+len(csv)+1])),
+                        'sen':' '.join(ttc[word:word+len(csv)+1])},
+                    {'match':compare(row['sentence'], ' '.join(ttc[word:word+len(csv)+2])),
+                        'sen':' '.join(ttc[word:word+len(csv)+2])},
+                    {'match':compare(row['sentence'], ' '.join(ttc[word:word+len(csv)+3])),
+                        'sen':' '.join(ttc[word:word+len(csv)+3])},
+                    {'match':compare(row['sentence'], ' '.join(ttc[word:word+len(csv)-1])),
+                        'sen':' '.join(ttc[word:word+len(csv)-1])},
+                    {'match':compare(row['sentence'], ' '.join(ttc[word:word+len(csv)-2])),
+                        'sen':' '.join(ttc[word:word+len(csv)-2])},
+                    {'match':compare(row['sentence'], ' '.join(ttc[word:word+len(csv)-3])),
+                        'sen':' '.join(ttc[word:word+len(csv)-3])}
+                ]}]
+            anchors.append([max(dVals["items"], key=lambda x: x["match"]) for dVals in matches][0])
+    except Exception as e:
+        print(f'Range issues with {num}')
+    return anchors
 
 
 def videosplice(args, cut_times, adir):
@@ -232,7 +265,7 @@ def main(args, adir, csv):
         csv_file["timestamps"].append(timestamps)
         audio.export(os.path.join(adir, file_name), format="wav", parameters=params_list)
     
-    csv_file["size"] = [""] * len(csv_file["file"])  # adding an empty column for wav file size
+    csv_file["filesize"] = [""] * len(csv_file["file"])  # adding an empty column for wav file size
     csv_file["sentence"] = [""] * len(csv_file["file"])  # adding an empty column for transcription
     pd.DataFrame(csv_file).to_csv(csv, sep="|", index=False)
     files = pd.read_csv(csv, sep="|", dtype="string")
@@ -249,7 +282,51 @@ def main(args, adir, csv):
         files.iat[i, 3] = text
 
     files.to_csv(csv, sep="|", index=False)
-    print(f"FINISHED: {csv} has been written")
+    print(f"FINISHED WRITING {csv}")
+
+    if args.ttc:
+        print(f"Using TTC file to help with annotation")
+        ttc_file = set(line.strip() for line in open(args.ttc))
+        ttc_csv = csv.replace('.csv', '-ttc.csv')
+
+        # Format TTC text to big list of words
+        ttc_text = []
+        for l in ttc_file:
+            if ">" not in l and ":" not in l and "WEBVTT" not in l and l != "":
+                ttc_text.append(l.replace(f"[Music]", ""))
+        full_list = ' '.join(ttc_text)
+        ttc = full_list.split()
+
+        # CSV should be written so open it up for sentence matching
+        csv_f = pd.read_csv(csv, sep="|", dtype = {
+                'file': "string",
+                'timestamps': "string",
+                'filesize': "string",
+                'sentence': "string"
+            })
+
+        for index, row in csv_f.iterrows():
+            anchors = []
+            length = len(csv_f.index)
+            if not pd.isna(row['sentence']):
+                split_row = row['sentence'].split()
+                print(f"\nSENTENCE {index+1} of {length}: {row['sentence']}")
+                anchors.extend(getMatches(split_row, ttc, index, row, 0))
+                anchors.extend(getMatches(split_row, ttc, index, row, 1))
+                anchors.extend(getMatches(split_row, ttc, index, row, 2))
+            else:
+                print(f"\nSENTENCE {index+1} of {length} is empty.")
+
+            if anchors:
+                anchor_max = max(anchors, key=lambda x: x["match"])
+                print(f"MATCH {round(anchor_max['match'] * 100)}% SENTENCE {anchor_max['sen']}")
+                csv_f.iat[index,3] = anchor_max['sen']
+                csv_f.iat[index,2] = str(round(anchor_max['match']*100))
+            else:
+                print("FOUND NOTHING")
+
+        csv_f.to_csv(ttc_csv, sep="|", header=['file', 'timestamps', 'accuracy', 'sentence'], index=False)
+        print(f"FINISHED WRITING {ttc_csv}")
 
 
 if __name__ == "__main__":
@@ -262,6 +339,7 @@ if __name__ == "__main__":
     parser.add_argument("--wav_args", help="List of arguments of the wav created files as string", default="-acodec pcm_s16le -ac 1 -ar 16000")
     parser.add_argument("--max_duration", help="Maximum duration (in seconds) a clip can last", default=7, type=int)
     parser.add_argument("--min_duration", help="Minimum duration (in seconds) a clip can last", default=2, type=int)
+    parser.add_argument("--ttc", help="Path to TTC for CSV correcting and comparing")
     parser.add_argument("--remove_bad_segments", action="store_true",
         help="Use this to automatically remove sentences not spoken by a speaker of interest (must be specified using the 'speaker_segment' argument")
     parser.add_argument("--speaker_segment", nargs=2, type=float, 
