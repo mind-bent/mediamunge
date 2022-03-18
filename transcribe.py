@@ -362,8 +362,14 @@ if __name__ == "__main__":
                 basename = ''.join(e for e in item if e.isalnum())
                 adir = f"media/{basename}_audio/"
                 csv = f"media/{basename}.csv"
+                ttc_file = f"{item.split('.')[:-1]}{en.ttc}"
+                if os.path.isfile(f"{args.input_dir}{ttc_file}"):
+                    ttc_f = f"{item.split('.')[:-1]}{en.ttc}"
+                else:
+                    ttc_f = None
                 new_args = Namespace(
                     input=f"{args.input_dir}{item}",
+                    ttc=ttc_f,
                     splice_video=args.splice_video,
                     wav_args=args.wav_args,
                     max_duration=args.max_duration,

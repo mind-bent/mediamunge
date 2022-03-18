@@ -52,7 +52,7 @@ if __name__ == "__main__":
     
     instructions = Label(
             window,
-            text="Audio gets played automatically.\nTranscribe in the topmost text area.\nctrl-n for next sentence, ctrl-p for previous, ctrl-s to swap, ctrl-u to undo, ctrl-d to delete, ctrl-r to repeat playback"
+            text="Audio gets played automatically.\nTranscribe in the topmost text area.\nctrl-n for next sentence, ctrl-p for previous, ctrl-m to match, ctrl-u to undo, ctrl-d to delete, ctrl-r to repeat playback"
     )
     instructions.grid(row=0, columnspan=4)
     
@@ -98,8 +98,8 @@ if __name__ == "__main__":
         transcription.delete("1.0", END)
         transcription.insert("1.0", sent)
 
-    def press_swap():
-        """Takes TTC text in the bottom text box and swaps it with the CSV text on in the top text box"""
+    def press_match():
+        """Takes matched TTC text in the bottom text box and swaps it with the CSV text on in the top text box"""
         ttc_text = ttc_scription.get("1.0", END).replace("\n", "")
         transcription.delete("1.0", END)
         transcription.insert("1.0", ttc_text)
@@ -132,10 +132,10 @@ if __name__ == "__main__":
         """Repeats the previous audio file"""
         PlayAudioSample(os.path.join(args.audio_folder, files.file.iat[current_offset])).start()
         
-    button_swap = Button(window, text="Swap", command=press_swap, bg="white")
-    button_swap.grid(row=4, column=1)
-    button_swap = Button(window, text="Undo", command=press_undo, bg="yellow")
-    button_swap.grid(row=4, column=2)
+    button_match = Button(window, text="Match", command=press_match, bg="white")
+    button_match.grid(row=4, column=1)
+    button_undo = Button(window, text="Undo", command=press_undo, bg="yellow")
+    button_undo.grid(row=4, column=2)
     button_delete = Button(window, text="Delete", command=press_delete, bg="red")
     button_delete.grid(row=5, column=0)
     button_repeat = Button(window, text="Repeat", command=press_repeat, bg="white")
@@ -148,12 +148,12 @@ if __name__ == "__main__":
     window.bind('<Control-r>', lambda _: press_repeat())
     window.bind('<Control-p>', lambda _: press_previous())
     window.bind('<Control-n>', lambda _: press_next())
-    window.bind('<Control-s>', lambda _: press_swap())
+    window.bind('<Control-m>', lambda _: press_match())
     window.bind('<Control-u>', lambda _: press_undo())
     
     progress_bar = ttk.Progressbar(window, style='blue.Horizontal.TProgressbar', length=WIN_SIZE, maximum=len(files))
     progress_bar.grid(row=6, columnspan=4)
-    window.grid_rowconfigure(3, weight=1)  # so that pbar is at the bottom
+    window.grid_rowconfigure(3, weight=1)  # so that progress bar is at the bottom
     
     current_offset = args.jump - 1  # will be incremented or decremented by prepare_next_turn
     prepare_next_turn(True)
@@ -167,11 +167,19 @@ if __name__ == "__main__":
         
     index_to_keep = [i for i in range(len(files)) if i not in set(offsets_deleted_sentences)]
     files = files.iloc[index_to_keep]
-    ttc_files = ttc_files.iloc[index_to_keep]
+    if args.ttc:
+        indextokeep = [i for i in range(len(ttc_files)) if i not in set(offsets_deleted_sentences)]
+        ttc_files = ttc_files.iloc[indextokeep]
     
     print("Saved modified csv file")
     try:
         print(f"LAST WAV FILE WAS: {files.iat[current_offset, 0].split('/')[-1]}")
+        print(f"LAST LINE: {current_offset}")
     except Exception as e:
         print(f'LINE {len(files)-1} IS THE LAST SENTENCE')
+        print(f'LINE {current_offset} IS THE LAST LINE?')
+
     files.to_csv(args.csv, sep="|", index=False)
+    if args.ttc:
+        ttc_files.to_csv(args.ttc, sep="|", index=False)
+
