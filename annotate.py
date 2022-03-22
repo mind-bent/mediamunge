@@ -177,7 +177,7 @@ if __name__ == "__main__":
         print(f"LAST LINE: {current_offset}")
     except Exception as e:
         print(f'LINE {len(files)-1} IS THE LAST SENTENCE')
-        print(f'LINE {current_offset} IS THE LAST LINE?')
+        print(f'LINE {current_offset} IS THE LAST LINE')
 
     files.to_csv(args.csv, sep="|", index=False)
     if args.ttc:
