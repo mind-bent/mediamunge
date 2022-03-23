@@ -192,7 +192,7 @@ def main(args, adir, csv):
         sys.exit()
 
     # Format wav file name
-    wav_file = f"{''.join(e for e in args.input.split('/')[-1] if e.isalnum())}.wav"
+    wav_file = f"{''.join(e for e in ''.join(args.input.split('/')[-1].split('.')[:-1]) if e.isalnum())}.wav"
     wav_file = f"{'/'.join(args.input.split('/')[:-1])}/{wav_file}"
 
     # Convert video to mono 14k audio wave file
@@ -358,8 +358,8 @@ if __name__ == "__main__":
 
         for item in os.listdir(args.input_dir):
             print(f"FOUND {args.input_dir}{item}")
-            if item.endswith('mkv') or item.endswith('mp4') or item.endswith('mp3') or item.endswith('webm'):
-                basename = ''.join(e for e in item if e.isalnum())
+            if [item.endswith(ext) for ext in ['mkv','mp4','mp3','webm']]: 
+                basename = ''.join(e for e in '.'.join(item.split('.')[:-1]) if e.isalnum())
                 adir = f"media/{basename}_audio/"
                 csv = f"media/{basename}.csv"
                 vtt_file = f"{''.join(item.split('.')[:-1])}.en.vtt"
@@ -381,7 +381,7 @@ if __name__ == "__main__":
                 main(new_args, adir, csv)
 
     else:
-        basename = ''.join(e for e in args.input.split('/')[-1] if e.isalnum())
+        basename = ''.join(e for e in args.input.split('.')[:-1].split('/')[-1] if e.isalnum())
         adir = f"media/{basename}_audio/"
         csv = f"media/{basename}.csv"
         main(args, adir, csv)
