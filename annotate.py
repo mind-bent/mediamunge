@@ -171,15 +171,16 @@ if __name__ == "__main__":
         indextokeep = [i for i in range(len(ttc_files)) if i not in set(offsets_deleted_sentences)]
         ttc_files = ttc_files.iloc[indextokeep]
     
+
+    files.to_csv(args.csv, sep="|", index=False)
+    if args.ttc:
+        ttc_files.to_csv(args.ttc, sep="|", index=False)
+
     print("Saved modified csv file")
+
     try:
         print(f"LAST WAV FILE WAS: {files.iat[current_offset, 0].split('/')[-1]}")
         print(f"LAST LINE: {current_offset}")
     except Exception as e:
         print(f'LINE {len(files)-1} IS THE LAST SENTENCE')
         print(f'LINE {current_offset} IS THE LAST LINE')
-
-    files.to_csv(args.csv, sep="|", index=False)
-    if args.ttc:
-        ttc_files.to_csv(args.ttc, sep="|", index=False)
-
