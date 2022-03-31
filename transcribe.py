@@ -381,7 +381,7 @@ if __name__ == "__main__":
                 main(new_args, adir, csv)
 
     else:
-        basename = ''.join(e for e in args.input.split('.')[:-1].split('/')[-1] if e.isalnum())
+        basename = ''.join([e for e in '.'.join(args.input.split('.')[:-1]).split('/')[-1] if e.isalnum()])
         adir = f"media/{basename}_audio/"
         csv = f"media/{basename}.csv"
         main(args, adir, csv)

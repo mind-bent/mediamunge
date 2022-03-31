@@ -31,7 +31,7 @@ def prep_csv(csv_file):
 
 
 def getMatches(csv, vtt, index, row, num):
-    ''' Fuzzes the sequence (needle) to find within the larger sequence (haystack) based on the length and anchor point to get a better match.
+    ''' Fuzzes (3 elements before and after the anchor) the sequence (needle) to find within the larger sequence (haystack) based on the length and anchor point to get a better match.
     '''
     anchors = []
     try:

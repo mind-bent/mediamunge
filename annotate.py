@@ -25,7 +25,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser("""Manually completes the transcriptions of audio files, with some help.""")
     parser.add_argument("--audio_folder", help="Folder that contains the audio files.", required=True)
     parser.add_argument("--csv", help="Name of the csv file that is to be filled with the files transcriptions.", required=True)
-    parser.add_argument("--ttc", help="Name of the converted ttc to csv file (from transcribe.py) that can be used to help with transcription.")
+    parser.add_argument("--vtt", help="Name of the converted vtt to csv file (from transcribe.py) that can be used to help with transcription.")
     parser.add_argument("--jump", help="Junp to this row in the CSV file.", default=0, type=int)
     args = parser.parse_args()
     
@@ -36,8 +36,8 @@ if __name__ == "__main__":
         'sentence': "string"
     })
 
-    if args.ttc:
-        ttc_files = pd.read_csv(args.ttc, sep="|", dtype = {
+    if args.vtt:
+        vtt_files = pd.read_csv(args.vtt, sep="|", dtype = {
             'file': "string",
             'timestamps': "string",
             'accuracy': "string",
@@ -59,12 +59,12 @@ if __name__ == "__main__":
     transcription = scrolledtext.ScrolledText(window, width=130, height=4)
     transcription.grid(row=1, columnspan=4, pady=30)
 
-    if args.ttc:
+    if args.vtt:
         percent = Label(window, width=50, height=2)
         percent.grid(row=2, columnspan=4, pady=30)
 
-    ttc_scription = scrolledtext.ScrolledText(window, width=130, height=3)
-    ttc_scription.grid(row=3, columnspan=4, pady=30)
+    vtt_scription = scrolledtext.ScrolledText(window, width=130, height=3)
+    vtt_scription.grid(row=3, columnspan=4, pady=30)
     
     def prepare_next_turn(fwd):
         """Loads next file or ends the program"""
@@ -76,16 +76,16 @@ if __name__ == "__main__":
         progress_bar["value"] = current_offset
         if current_offset < len(files):
             transcription.delete("1.0", END)
-            ttc_scription.delete("1.0", END)
+            vtt_scription.delete("1.0", END)
             sent = files.sentence.iat[current_offset]
-            if args.ttc:
-                ttc_sent = ttc_files.sentence.iat[current_offset]
+            if args.vtt:
+                vtt_sent = vtt_files.sentence.iat[current_offset]
             if isinstance(sent, str) and sent != "":
                 transcription.insert("1.0", sent)
-            if args.ttc:
-                if isinstance(ttc_sent, str) and ttc_sent != "":
-                    ttc_scription.insert("1.0", ttc_sent)
-                    percent.config(text = f"If subtitles were provided,\nthis is the accuracy from the matched subs below: {ttc_files.accuracy.iat[current_offset]}%")
+            if args.vtt:
+                if isinstance(vtt_sent, str) and vtt_sent != "":
+                    vtt_scription.insert("1.0", vtt_sent)
+                    percent.config(text = f"If subtitles were provided,\nthis is the accuracy from the matched subs below: {vtt_files.accuracy.iat[current_offset]}%")
             audio_player = PlayAudioSample(os.path.join(args.audio_folder, files.file.iat[current_offset])).start()
             transcription.focus()
         else:
@@ -99,24 +99,24 @@ if __name__ == "__main__":
         transcription.insert("1.0", sent)
 
     def press_match():
-        """Takes matched TTC text in the bottom text box and swaps it with the CSV text on in the top text box"""
-        ttc_text = ttc_scription.get("1.0", END).replace("\n", "")
+        """Takes matched VTT text in the bottom text box and swaps it with the CSV text on in the top text box"""
+        vtt_text = vtt_scription.get("1.0", END).replace("\n", "")
         transcription.delete("1.0", END)
-        transcription.insert("1.0", ttc_text)
+        transcription.insert("1.0", vtt_text)
 
     def press_previous():
         """Modifies csv with text content and prepares for next turn"""
         files.iat[current_offset, 3] = transcription.get("1.0", END).replace("\n", "")
-        if args.ttc:
-            ttc_files.iat[current_offset, 3] = ttc_scription.get("1.0", END).replace("\n", "")
+        if args.vtt:
+            vtt_files.iat[current_offset, 3] = vtt_scription.get("1.0", END).replace("\n", "")
         window.title(f"Current wav file is {files.iat[current_offset-1, 0].split('/')[-1]}")
         prepare_next_turn(False)
 
     def press_next():
         """Modifies csv with text content and prepares for next turn"""
         files.iat[current_offset, 3] = transcription.get("1.0", END).replace("\n", "")
-        if args.ttc:
-            ttc_files.iat[current_offset, 3] = ttc_scription.get("1.0", END).replace("\n", "")
+        if args.vtt:
+            vtt_files.iat[current_offset, 3] = vtt_scription.get("1.0", END).replace("\n", "")
         try:
             window.title(f"Current wav file is {files.iat[current_offset+1, 0].split('/')[-1]}")
         except Exception as e:
@@ -167,14 +167,14 @@ if __name__ == "__main__":
         
     index_to_keep = [i for i in range(len(files)) if i not in set(offsets_deleted_sentences)]
     files = files.iloc[index_to_keep]
-    if args.ttc:
-        indextokeep = [i for i in range(len(ttc_files)) if i not in set(offsets_deleted_sentences)]
-        ttc_files = ttc_files.iloc[indextokeep]
+    if args.vtt:
+        indextokeep = [i for i in range(len(vtt_files)) if i not in set(offsets_deleted_sentences)]
+        vtt_files = vtt_files.iloc[indextokeep]
     
 
     files.to_csv(args.csv, sep="|", index=False)
-    if args.ttc:
-        ttc_files.to_csv(args.ttc, sep="|", index=False)
+    if args.vtt:
+        vtt_files.to_csv(args.vtt, sep="|", index=False)
 
     print("Saved modified csv file")
 
